@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <style>
+      button#startForce {
+        position: absolute;
+        left: 50px;
+        top: 850px;
+      }
+      button#stopForce {
+        position: absolute;
+        left: 130px;
+        top: 850px;
+      }
+
+      .slidecontainer {
+        position: relative;
+        left: 700px;
+        top: 200px;
+        width: 25%;
+      }
+
+      .slider {
+        -webkit-appearance: none;
+        position: relative;
+        width: 100%;
+        height: 25px;
+        background: #d3d3d3;
+        outline: none;
+        opacity: 0.7;
+        -webkit-transition: 0.2s;
+        transition: opacity 0.2s;
+      }
+
+      .slider:hover {
+        opacity: 1;
+      }
+
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 25px;
+        height: 25px;
+        background: #04aa6d;
+        cursor: pointer;
+      }
+
+      .slider::-moz-range-thumb {
+        width: 25px;
+        height: 25px;
+        background: #04aa6d;
+        cursor: pointer;
+      }
+    </style>
+
+    <script src="Libraries/matter.js"></script>
+    <script src="Libraries/jquery-3.6.0.js"></script>
+
+    <button id="startForce" onClick="startForce()">Shake me!</button>
+    <button id="stopForce" onClick="stopForce()">Stop!</button>
+
+    <div class="slidecontainer">
+      <input
+        type="range"
+        min="1"
+        max="100"
+        value="50"
+        class="slider"
+        id="myRange"
+      />
+    </div>
+
+    <script>
+      rangeslider = $("#myRange")[0];
+      //    rangeslider= document.getElementById("myRange");
+      amp = rangeslider.value;
+
+      Fs = 0;
+      Fk = 0;
+      earthquake = false;
+      first = true;
+
+      let engine = Matter.Engine.create();
+
+      let render = Matter.Render.create({
+        element: document.body,
+        engine: engine,
+        options: {
+          width: 600,
+          height: 800,
+          background: "#f8f9fa",
+          wireframes: false,
+        },
+      });
+
+      Matter.Render.run(render);
+
+      let runner = Matter.Runner.create();
+      Matter.Runner.run(runner, engine);
+
+      //   let mouseConstraint = Matter.MouseConstraint.create(engine, {
+      //     mouse: Matter.Mouse.create(render.canvas),
+      //   });
+
+      // add mouse control
+
+      var mouse = Matter.Mouse.create(render.canvas),
+        mouseConstraint = Matter.MouseConstraint.create(engine, {
+          mouse: mouse,
+          constraint: {
+            stiffness: 0.2,
+            render: {
+              visible: false,
+            },
+          },
+        });
+
+      Matter.Composite.add(engine.world, mouseConstraint);
+
+      // keep the mouse in sync with rendering
+      render.mouse = mouse;
+
+      Matter.World.add(engine.world, mouseConstraint);
+
+      ground = Matter.Bodies.rectangle(300, 775, 2000, 50, { isStatic: true });
+      Matter.World.add(engine.world, ground);
+
+      toplayer = Matter.Bodies.rectangle(300, 725, 2000, 50, {
+        isStatic: true,
+      });
+
+      toplayer.friction = Fk;
+      toplayer.frictionStatic = Fs;
+      Matter.World.add(engine.world, toplayer);
+
+      leftwall = Matter.Bodies.rectangle(100, 450, 25, 500);
+      leftwall.friction = Fk;
+      leftwall.frictionStatic = Fs;
+      Matter.World.add(engine.world, leftwall);
+
+      rightwall = Matter.Bodies.rectangle(500, 450, 25, 500);
+      rightwall.friction = Fk;
+      rightwall.frictionStatic = Fs;
+      Matter.World.add(engine.world, rightwall);
+
+      ceiling = Matter.Bodies.rectangle(300, 188.5, 500, 25);
+      ceiling.friction = Fk;
+      ceiling.frictionStatic = Fs;
+      Matter.World.add(engine.world, ceiling);
+
+      pend = Matter.Bodies.rectangle(300, 588.5, 50, 50);
+      Matter.World.add(engine.world, pend);
+
+      pend.frictionAir = 0.01;
+      ceiling.frictionAir = 0;
+      leftwall.frictionAir = 0;
+      rightwall.frictionAir = 0;
+
+      //CONSTRAINTS
+
+      var options = {
+        bodyA: ceiling,
+        bodyB: pend,
+      };
+
+      var constraint = Matter.Constraint.create(options);
+      Matter.World.add(engine.world, constraint);
+
+      var options = {
+        bodyA: leftwall,
+        pointA: { x: 0, y: 245 },
+        bodyB: toplayer,
+        pointB: { x: -200, y: -20 },
+      };
+
+      var constraint = Matter.Constraint.create(options);
+      Matter.World.add(engine.world, constraint);
+
+      var options = {
+        bodyA: rightwall,
+        pointA: { x: 0, y: 245 },
+        bodyB: toplayer,
+        pointB: { x: 200, y: -20 },
+      };
+
+      var constraint = Matter.Constraint.create(options);
+      Matter.World.add(engine.world, constraint);
+
+      var options = {
+        bodyA: leftwall,
+        pointA: { x: 0, y: -245 },
+        bodyB: ceiling,
+        pointB: { x: -200, y: 0 },
+      };
+
+      var constraint = Matter.Constraint.create(options);
+      Matter.World.add(engine.world, constraint);
+
+      var options = {
+        bodyA: rightwall,
+        pointA: { x: 0, y: -245 },
+        bodyB: ceiling,
+        pointB: { x: 200, y: 0 },
+      };
+
+      var constraint = Matter.Constraint.create(options);
+      Matter.World.add(engine.world, constraint);
+
+      Matter.Events.on(engine, "afterUpdate", function (event) {
+        $("#myRange").on("change", function () {
+          amp = $(this).val();
+          console.log(amp);
+        });
+        // amp = rangeslider.value;
+
+        t = engine.timing.timestamp;
+
+        if (earthquake) {
+          if (first) {
+            t0 = engine.timing.timestamp;
+            first = false;
+          }
+
+          toplayer.position.x = 300 + amp * Math.sin((1.57 * (t - t0)) / 1000);
+        }
+      });
+
+      function startForce() {
+        earthquake = true;
+      }
+
+      function stopForce() {
+        earthquake = false;
+        first = true;
+      }
+    </script>
+  </body>
+</html>
